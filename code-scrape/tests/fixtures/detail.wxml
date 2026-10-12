@@ -1,0 +1,5 @@
+<view class="page">
+  <!-- 项目详情 -->
+  <text>{{ project.name }}</text>
+  <image src="{{ img }}" mode="aspectFill" />
+</view>

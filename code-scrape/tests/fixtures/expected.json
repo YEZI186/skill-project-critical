@@ -1,0 +1,8 @@
+{
+  "UserController.java": {"phys": 20, "blank": 5, "comment": 3, "code": 12},
+  "order_service.py": {"phys": 18, "blank": 4, "comment": 7, "code": 7},
+  "ProfileCard.vue": {"phys": 22, "blank": 2, "comment": 2, "code": 18},
+  "detail.wxml": {"phys": 5, "blank": 0, "comment": 1, "code": 4},
+  "report.sql": {"phys": 9, "blank": 1, "comment": 4, "code": 4},
+  "deploy.sh": {"phys": 9, "blank": 2, "comment": 4, "code": 3}
+}

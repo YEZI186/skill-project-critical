@@ -1,0 +1,9 @@
+{
+  "max_empty_lines": 0,
+  "trim_trailing_whitespace": true,
+  "max_file_size_mb": 50,
+  "output_dir": "out",
+  "output_type": "源代码",
+  "output_name_template": "源代码-{项目名}",
+  "overwrite_existing": true
+}
