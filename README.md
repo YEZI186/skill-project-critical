@@ -11,15 +11,63 @@
 
 ## 安装
 
-把本仓库放到 DSH 的 skills 目录下，目录名 `project-critical`：
+本仓库是标准 Agent Skills 包（根目录含 `SKILL.md`），用 [`skills` CLI](https://github.com/vercel-labs/skills) 一键安装。
+
+### 推荐：一条命令覆盖 opencode / pi / DeepSeek Harness
 
 ```
-<DSH_HOME>/skills/project-critical/
+npx skills add YEZI186/skill-project-critical -a opencode -a pi -g -y
+```
+
+这三个 agent 都读取**通用 skills 目录** `~/.agents/skills/`，因此一次安装三方同时生效：
+
+| Agent | 生效路径 | 说明 |
+|---|---|---|
+| opencode | `~/.agents/skills/project-critical/` | opencode 官方支持的通用 skills 目录（项目级为 `<项目>/.agents/skills/`） |
+| pi | `~/.agents/skills/project-critical/` | pi 的全局 skills 目录 |
+| DeepSeek Harness | `~/.agents/skills/project-critical/` | DSH 的 `agents` skill 来源，默认启用（见 `<DSH_HOME>/skills-manager/state.json`）；DSH 另支持自有目录 `<DSH_HOME>/skills/` |
+
+> 2026-10-12 本机实测：执行上面这条命令后，两个 agent 的安装结果落在同一路径 `~/.agents/skills/project-critical/`（34 文件 / 约 257 KB，含 `code-scrape/` 全部内容），DSH 侧无需额外操作即可识别。
+
+### 其他 agent
+
+```
+npx skills add YEZI186/skill-project-critical -a claude-code -g -y    # 指定单个 agent
+npx skills add YEZI186/skill-project-critical -a cursor -g -y
+npx skills add YEZI186/skill-project-critical --all                   # 安装到全部已探测到的 agent
+npx skills ls -g                                                      # 查看已安装
+npx skills remove project-critical -g                                 # 卸载
+```
+
+`skills` CLI 支持 85 个 agent（claude-code、cursor、codex、gemini-cli、windsurf、trae、qwen-code、kimi-code-cli、roo、cline、amp、zed…）。
+
+### 装到 DeepSeek Harness 自有目录（可选）
+
+只使用 DSH，或希望把 skill 放在 DSH 自有目录（便于本地改动脚本与规则、避免与通用目录混用）时：
+
+```
+git clone https://github.com/YEZI186/skill-project-critical.git "<DSH_HOME>/skills/project-critical"
+```
+
+`<DSH_HOME>` 默认 `~/.dsh`（Windows 为 `C:\Users\<用户名>\.dsh`），即最终路径 `~/.dsh/skills/project-critical/`。
+
+### 项目级安装（随仓库提交、团队共享）
+
+在项目根目录执行（安装到该项目的 `.agents/skills/`）：
+
+```
+npx skills add YEZI186/skill-project-critical -a opencode -a pi
+```
+
+### 手动安装
+
+把本仓库（至少 `SKILL.md` 与 `code-scrape/`）复制到目标 agent 的 skills 目录，**目录名保持 `project-critical`**：
+
+```
+<agent skills 目录>/project-critical/
 ├─ SKILL.md
 └─ code-scrape/
 ```
-
-技能本身由 AI Agent 依据 `SKILL.md` 的规则执行；脚本可独立使用。
 
 ## 使用
 
