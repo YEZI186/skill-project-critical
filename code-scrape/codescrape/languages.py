@@ -139,7 +139,7 @@ _reg(LangSpec("Matlab", line_comments=("%",), block_comments=(BlockComment("%{",
 
 # ---- 标记 / 前端 ----
 _MARKUP = LangSpec("Markup", block_comments=(BlockComment("<!--", "-->"),), strings=_SQ_DQ, escape=None)
-_reg(_MARKUP, ".html", ".htm", ".xml", ".svg", ".wxml", ".axml")
+_reg(_MARKUP, ".html", ".htm", ".xml", ".svg", ".wxml", ".axml", ".xaml")
 _reg(LangSpec("JSP", block_comments=(BlockComment("<!--", "-->"), BlockComment("<%--", "--%>")),
               strings=_SQ_DQ, escape=None), ".jsp", ".asp")
 _reg(LangSpec("Template", line_comments=("//",), block_comments=(BlockComment("<!--", "-->"),),

@@ -271,5 +271,71 @@ class ReportTest(unittest.TestCase):
         self.assertTrue(loaded["reconcile"]["ok"])
 
 
+class DeliveryLineTest(unittest.TestCase):
+    """交付自检行：齐备 / 不完整 / 存疑，以及不产出文档时返回空串（SKILL.md Step 5）"""
+
+    def _stats(self, tmp, *, md_exists=True, listing_exists=True, mismatch=False):
+        listing_path = os.path.join(tmp, "out", "核心代码名称.md")
+        md_path = os.path.join(tmp, "out", "源代码-演示.md")
+        os.makedirs(os.path.join(tmp, "out"), exist_ok=True)
+        if listing_exists:
+            with open(listing_path, "w", encoding="utf-8") as f:
+                f.write("# 核心代码文件清单\na.py\n")
+        if md_exists:
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write("print(1)\n")
+        doc = markdown.build([("a.py", "print(1)\n")])
+        phys = 99 if mismatch else 1
+        return report.build_stats(
+            root=tmp, project_name="演示", project_name_source="cwd",
+            listing_info={"path": listing_path, "entries": 1, "matched": 1,
+                          "missing": [], "invalid": [], "backend": 1, "frontend": 0},
+            file_stats=[report.FileStat(path="a.py", ext=".py", phys=phys, code=phys)],
+            doc=doc, md_path=md_path)
+
+    def test_present_when_both_written_and_balanced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stats = self._stats(tmp)
+            self.assertTrue(stats["reconcile"]["ok"])
+            self.assertIn("两份材料齐备", report.delivery_line(stats, tmp))
+
+    def test_incomplete_when_md_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            line = report.delivery_line(self._stats(tmp, md_exists=False), tmp)
+            self.assertIn("[交付] 不完整", line)
+            self.assertIn("汇总 md", line)
+
+    def test_incomplete_when_listing_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            line = report.delivery_line(self._stats(tmp, listing_exists=False), tmp)
+            self.assertIn("[交付] 不完整", line)
+            self.assertIn("清单", line)
+
+    def test_doubtful_when_reconcile_fails(self):
+        """对账不平不得报齐备——只验文件存在性会误报（本次修复的缺陷）"""
+        with tempfile.TemporaryDirectory() as tmp:
+            stats = self._stats(tmp, mismatch=True)
+            self.assertFalse(stats["reconcile"]["ok"])
+            line = report.delivery_line(stats, tmp)
+            self.assertIn("[交付] 存疑", line)
+            self.assertNotIn("齐备", line)
+
+    def test_empty_when_no_document_written(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stats = self._stats(tmp)
+            stats["dry_run"] = True
+            self.assertEqual(report.delivery_line(stats, tmp), "")
+            stats2 = self._stats(tmp)
+            stats2["md"]["path"] = ""
+            self.assertEqual(report.delivery_line(stats2, tmp), "")
+
+    def test_quiet_includes_delivery_but_not_totals(self):
+        """-q 省略 [统计]，但 [交付] 必须保留，否则无法按 Step 5 判完成"""
+        with tempfile.TemporaryDirectory() as tmp:
+            text = "\n".join(report.console_lines(self._stats(tmp), quiet=True, root=tmp))
+            self.assertIn("[交付] 两份材料齐备", text)
+            self.assertNotIn("[统计]", text)
+
+
 if __name__ == "__main__":
     unittest.main()

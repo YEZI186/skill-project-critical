@@ -29,9 +29,11 @@ BACKEND_EXTS = frozenset({
 FRONTEND_EXTS = frozenset({
     ".vue", ".tsx", ".jsx", ".svelte", ".astro",
     ".ts", ".js", ".mjs", ".cjs",
+    ".xaml",                                    # WPF/MAUI/Avalonia 页面结构程序（SKILL.md Step 1）
     # 注意：SKILL.md Step 2 明确剔除 .html（纯模板），因此这里不采集 .html
 })
 MINIPROGRAM_EXTS = frozenset({".wxml", ".axml"})
+XAML_EXTS = frozenset({".xaml"})
 COLLECT_EXTS = BACKEND_EXTS | FRONTEND_EXTS | MINIPROGRAM_EXTS
 
 # ============================ 一律剔除（SKILL.md Step 2）============================
@@ -217,6 +219,21 @@ def is_miniprogram(root: str) -> bool:
 
 
 # ============================ 剔除判定 ============================
+
+# XAML 样式资源：根元素为 ResourceDictionary（主题/图标/画笔字典）属样式，不是页面结构程序；
+# 根元素为 Window/UserControl/Page 一类才算页面（SKILL.md Step 2）
+_XAML_DECL_RE = re.compile(r"<\?xml.*?\?>", re.S)
+_XAML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+_XAML_ROOT_TAG_RE = re.compile(r"<\s*([A-Za-z_][\w.:]*)")
+_XAML_STYLE_ROOT = "ResourceDictionary"
+
+
+def is_style_xaml(text: str) -> bool:
+    """按根元素判定 XAML 是否样式资源字典；判不出时返回 False（保留，避免错杀页面）"""
+    head = _XAML_DECL_RE.sub("", _XAML_COMMENT_RE.sub("", text[:4096]))
+    m = _XAML_ROOT_TAG_RE.search(head)
+    return bool(m) and m.group(1).split(":")[-1] == _XAML_STYLE_ROOT
+
 
 def _p(path: str) -> str:
     return "/" + path.replace("\\", "/").lower()
@@ -536,6 +553,11 @@ def generate(root: str, skip_dirs=None, read_encoding: bool = True,
         if reason:
             stats["excluded"][reason] = stats["excluded"].get(reason, 0) + 1
             continue
+        if fi.ext in XAML_EXTS:
+            text, _enc = read_text(fi.path)
+            if text is not None and is_style_xaml(text):
+                stats["excluded"]["样式"] = stats["excluded"].get("样式", 0) + 1
+                continue
         candidates.append(fi)
     stats["collected"] = len(candidates)
 

@@ -174,6 +174,13 @@ class OtherCommandsTest(CliBase):
         self.assertTrue(os.path.exists(self.path("out", "核心代码名称.md")))
         self.assertFalse(os.path.exists(self.path("out", f"源代码-{PROJECT_NAME}.md")))
 
+    def test_list_warns_that_pack_is_still_required(self):
+        """list 只产清单：必须提示汇总 md 未产出，防止流程在清单处收尾（SKILL.md Step 5）"""
+        code, out = self.run_cli(["list", "-r", self.root, "--project-name", PROJECT_NAME])
+        self.assertEqual(code, 0, out)
+        self.assertIn("[下一步]", out)
+        self.assertIn("源代码汇总 md 尚未产出", out)
+
     def test_pack_without_listing_exits_1(self):
         code, out = self.run_cli(["pack", "-r", self.root, "--project-name", PROJECT_NAME])
         self.assertEqual(code, 1)
@@ -194,6 +201,26 @@ class OtherCommandsTest(CliBase):
         self.assertFalse(os.path.exists(self.path("out", f"源代码-{PROJECT_NAME}.md")))
         stats = json.loads(self.read("out", "stats.json"))
         self.assertTrue(stats["reconcile"]["ok"])
+        # stat 不产出 md（md_path 为空），故不做交付判定——通用条件是「未写出文档」，非 stat 专属
+        self.assertNotIn("[交付]", out)
+
+    def test_run_reports_both_materials_present(self):
+        """run 完成后自检「清单 + 汇总 md」两份材料齐备（SKILL.md Step 5 交付自检）"""
+        code, out = self.run_project()
+        self.assertEqual(code, 0, out)
+        self.assertIn("[交付] 两份材料齐备", out)
+
+    def test_quiet_still_reports_delivery(self):
+        """-q 下必须仍能判定完成：[统计] 行被 quiet 省略，[交付] 行不得被省略（SKILL.md Step 5）"""
+        code, out = self.run_project("-q")
+        self.assertEqual(code, 0, out)
+        self.assertIn("[交付] 两份材料齐备", out)
+        self.assertNotIn("[统计]", out)
+
+    def test_dry_run_has_no_delivery_line(self):
+        code, out = self.run_project("--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("[交付]", out)
 
     def test_scan_reports(self):
         code, out = self.run_cli(["scan", "-r", self.root, "--project-name", PROJECT_NAME])

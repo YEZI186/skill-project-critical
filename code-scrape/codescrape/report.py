@@ -167,6 +167,33 @@ def build_stats(*, root: str, project_name: str, project_name_source: str,
     }
 
 
+def delivery_line(stats: dict, root: str = "") -> str:
+    """交付自检行：两份材料（清单 + 汇总 md）必须同时落盘**且对账成立**（SKILL.md Step 5）
+
+    返回空串表示本轮不产出文档（dry-run / stat），不做交付判定。
+    三种结果：齐备 / 存疑（已落盘但对账不平）/ 不完整（缺文件）。
+    """
+    md = stats.get("md", {}) or {}
+    listing = stats.get("listing", {}) or {}
+    rec = stats.get("reconcile") or {}
+    if not md.get("path") or stats.get("dry_run"):
+        return ""
+    listing_path = listing.get("path", "") or ""
+    md_path = md.get("path", "")
+    md_show = _display(md_path, root)
+    have_listing = bool(listing_path) and os.path.isfile(listing_path)
+    have_md = os.path.isfile(md_path)
+    if not (have_listing and have_md):
+        lack = "、".join(n for n, ok in (("清单", have_listing), ("汇总 md", have_md)) if not ok)
+        return f"[交付] 不完整：缺 {lack}——按 SKILL.md Step 5 补跑 `run` 后再交付"
+    if not rec.get("ok", True):
+        return (f"[交付] 存疑：两份材料已落盘，但对账不平（md 正文 {rec.get('md_body_lines')} 行 ≠ "
+                f"Σ物理 {rec.get('sum_file_phys')} + 占位 {rec.get('placeholder_lines')}"
+                f" + 分隔 {rec.get('separator_lines')}）——不得交付，先排查")
+    return (f"[交付] 两份材料齐备：清单 {_display(listing_path, root)}"
+            f"（{listing.get('entries', 0)} 条）／汇总 {md_show}（{md.get('body_lines', 0)} 行）")
+
+
 def console_lines(stats: dict, quiet: bool = False, verbose: bool = False,
                   root: str = "") -> list[str]:
     """把统计渲染为会话输出行（[级别] 前缀，与历史 GUI 文案风格一致）"""
@@ -187,6 +214,10 @@ def console_lines(stats: dict, quiet: bool = False, verbose: bool = False,
                 f"Σ物理 {rec_q.get('sum_file_phys')} + 占位 {rec_q.get('placeholder_lines')}"
                 f" + 分隔 {rec_q.get('separator_lines')}"
             )
+        # quiet 也要给交付结论：否则按 SKILL.md Step 5 的判据无法在 -q 下判定完成
+        delivery = delivery_line(stats, root)
+        if delivery:
+            lines.append(delivery)
         return lines
 
     out.append(f"[完成] 项目：{stats.get('project_name', '')}　根目录：{root}")
@@ -225,6 +256,11 @@ def console_lines(stats: dict, quiet: bool = False, verbose: bool = False,
             out.append(f"[旧版对照] 归因：{detail}")
     head_note = f"（含旧版头部 {md.get('header_lines', 0)} 行）" if md.get("header_lines") else "（仅源码正文，无头部）"
     out.append(f"[输出] {md_show}{head_note}")
+
+    # 交付自检：两份材料（清单 + 汇总 md）必须同时落盘且对账成立（SKILL.md Step 5）
+    delivery = delivery_line(stats, root)
+    if delivery:
+        out.append(delivery)
 
     failed = [f for f in stats.get("files", []) if f.get("failed")]
     skipped: list[str] = []

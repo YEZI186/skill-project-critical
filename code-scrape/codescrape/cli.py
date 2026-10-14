@@ -119,9 +119,12 @@ def cmd_list(args, root: str, rules, rules_path: str | None) -> dict:
     problems.extend(f"小程序成对缺失：{p}" for p in result.pairing_issues)
 
     if not result.entries:
+        # 空项目：不写盘（脚本无法凭空造出清单），但给出与 SKILL.md 一致的下一步指引
         raise CliError(EXIT_ENV,
                        f"未采集到任何核心代码文件：{root}"
-                       "（请确认在项目根目录下执行，或该项目的源码目录被规则/剪枝排除）")
+                       "（请确认在项目根目录下执行，或该项目的源码目录被规则/剪枝排除）。"
+                       "若项目确实暂无代码（如文档仓），按 SKILL.md 注意事项生成空清单模板并注明"
+                       "「待代码落盘后按此规则重新生成」；代码落盘后再跑本命令补出清单与汇总 md")
     if problems and args.strict:
         detail = "；".join(problems[:5])
         raise CliError(EXIT_LISTING, f"清单校验未通过（--strict 已阻止写出）：{detail}")
@@ -131,8 +134,16 @@ def cmd_list(args, root: str, rules, rules_path: str | None) -> dict:
     if args.dry_run:
         _say("清单", f"{_display(target, root)}（dry-run 未写出）　条目 {len(result.entries)}")
     else:
-        listing.write_listing(result, target)
+        try:
+            listing.write_listing(result, target)
+        except OSError as e:
+            raise CliError(EXIT_ENV, f"清单写出失败：{target}（{type(e).__name__}: {e}）"
+                                     "——请确认输出目录可写，或用 -l 指定其它路径")
         _say("清单", f"{_display(target, root)}　条目 {len(result.entries)}")
+        if getattr(args, "command", "") == "list":
+            # list 只产清单、不产汇总 md：属流程半成品，必须提示补跑（见 SKILL.md Step 5）
+            _say("下一步", f"清单已生成，但源代码汇总 md 尚未产出——"
+                           f"补跑 `pack`（或直接用 `run`）生成 <root>/out/源代码-{{项目名}}.md")
     return {"path": target, "result": result}
 
 
